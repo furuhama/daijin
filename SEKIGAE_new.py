@@ -43,7 +43,7 @@ def combine_name_and_desk(NAMELIST, DESK_NUMBER):
     return NESTING_LIST
 
 def replace_desk_number_and_set_available(NAME_DESK_LIST, NAME, PLACE):
-    # セットされた名前のリストを、リモートの人の名前と仕事場所の String を受け取って、置き換えるT_DAY_IS_IT_TODAY = "本日は{}年{}月{}日{}".format())}}}}
+    # セットされた名前のリストを、リモートの人の名前と仕事場所の String を受け取って、置き換える
 
     # 名前だけのリストを作成
     SET_NAMELIST = []
