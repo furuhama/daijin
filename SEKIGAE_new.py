@@ -42,7 +42,7 @@ def combine_name_and_desk(namelist, desk_number):
         NESTING_LIST.append([namelist[i], desk_number[i]])
     return NESTING_LIST
 
-def replace_desk_number_and_set_available(name_desk_list, name, place):
+def replace_desk_number(name_desk_list, name, place):
     # セットされた名前のリストを、リモートの人の名前と仕事場所の String を受け取って、置き換える
 
     # 名前だけのリストを作成
