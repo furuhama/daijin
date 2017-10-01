@@ -88,6 +88,32 @@ OFFICE_MAP = """-----------------------------------------
                +------------------------------
                  |        corridor  """
 
-# if __name__ == '__main__':
-# TODO:
-# 曜日ごとのロジックや実際の挙動を記載
+if __name__ == '__main__':
+    # TODO:
+    # 曜日ごとのロジックや実際の挙動を記載
+    time_now = get_today_datetime(9)
+    weeknum = get_weekday_as_number(time_now)
+
+    # 月曜日
+    if weeknum == 0:
+        # set_namelist(FILENAME)
+
+    # 火曜日
+    elif weeknum == 1:
+        #
+
+    # 水曜日
+    elif weeknum == 2:
+        #
+
+    # 木曜日
+    elif weeknum == 3:
+        #
+
+    # 金曜日
+    elif weeknum == 4:
+        #
+
+    # 土曜日、日曜日
+    elif weeknum == 5 or weeknum == 6:
+        #
