@@ -6,6 +6,8 @@ import random
 import datetime
 import requests
 import yaml
+import holiday
+import codecs
 
 def get_today_datetime(difference):
     # herokuサーバーとの時差を修正する
@@ -33,9 +35,14 @@ def set_todays_desk_number(desk_quantity):
 def combine_name_and_desk(namelist, desk_number):
     # 2つの list を受け取って list をネストした構造にする
 
-    # list の要素数が違っていないかチェックする
-    if len(namelist) != len(desk_number):
-        return "error! namelistとdesk_numberは同じ要素数にしてください!"
+    # namelist の要素数が desk_number 以下の場合は availableを追加する
+    if len(namelist) < len(desk_number):
+        for i in range(len(desk_number) - len(namelist)):
+            namelist.append('available')
+
+    # namelist の要素数が desk_number を超えていないかチェックする
+    if len(namelist) > len(desk_number):
+        return "error! namelistの要素数がdesk_numberを超えています!\n(現在... namelist:{}, desk_number:{})".format(len(namelist), len(desk_number))
 
     nesting_list = []
     for i in range(len(namelist)):
@@ -43,7 +50,7 @@ def combine_name_and_desk(namelist, desk_number):
     return nesting_list
 
 def replace_desk_number(name_desk_list, name, place):
-    # セットされた名前のリストを、リモートの人の名前と仕事場所の string を受け取って、置き換える
+    # セットされた名前のリスト、リモートの人の名前と仕事場所の string を受け取って、置き換える
 
     # 名前だけのリストを作成
     set_namelist = []
@@ -55,17 +62,52 @@ def replace_desk_number(name_desk_list, name, place):
     STORE_NUMBER = name_desk_list[NAME_NUM][1]
 
     # 置き換えする
-    name_desk_list[NAME_NUM][1] =place
+    name_desk_list[NAME_NUM][1] = place
 
     # 最後に空いた席を available として追加
     name_desk_list.append(['available', STORE_NUMBER])
 
     return name_desk_list
 
+def list_to_str(set_list):
+    # listを受け取ってtext用の改行を含むstrに変換する
+    str_text = ''
+    for i in set_list:
+        str_text += str(i[0]) + ': ' + str(i[1]) + '\n'
+    
+    return str_text
+
 def what_day_is_it_today(daytime_arg, weeknumber):
     # 年月日と曜日に関するテキストを生成する
     WEEKNAME = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日']
-    return "本日は{}年{}月{}日{}".format(daytime_arg.year, daytime_arg.month, daytime_arg.day, WEEKNAME[weeknumber])
+    return "{}年{}月{}日{}".format(daytime_arg.year, daytime_arg.month, daytime_arg.day, WEEKNAME[weeknumber])
+
+def set_holiday_dict(filename, year):
+    # 入力されたファイルに、入力された年の祝日リストを書き込む
+    holiday_lists = []
+    for i in holiday.CountryHolidays.get('JP', year):
+        holiday_lists.append([str(i[0]), i[1]])
+
+    # 辞書型に変換
+    holiday_dict = dict(holiday_lists)
+
+    # 書き込み
+    with codecs.open(filename, 'w', 'utf-8') as f:
+        yaml.dump(holiday_dict, f, encoding='utf-8', allow_unicode=True, default_flow_style=False)
+    
+    f.close
+
+def load_holiday_dict(filename):
+    # 同じディレクトリにある休日の辞書を読み込む
+    f = open(filename, 'r')
+    holiday_dict = yaml.load(f)
+    f.close()
+    return holiday_dict
+
+def datetime_to_str(datetime_arg):
+    # get_today_datetime で取得した値を str に変換して dict の key の検索ができる形に(最後に' 00:00:00'を足しているのもそのため)
+    date_str_text = datetime_arg.strftime('%Y-%m-%d') + ' 00:00:00'
+    return date_str_text
 
 def send_bot_message(bot_text, target_url):
     # 送りたいテキストと対象のURLを string で受け取って送信する
@@ -75,45 +117,76 @@ def send_bot_message(bot_text, target_url):
 ### 以下は細かい定数を定義
 
 WEEKDAY_COMMENT = "インターンは空いているところに座ろう"
-HOLIDAY_COMMENY = "本日はお休みです"
-OFFICE_MAP = """-----------------------------------------
-|  shelf  |                  |  white board  |
+HOLIDAY_COMMENT = "本日はお休みです"
+OFFICE_MAP = """                             windows
+---------------------------------------------------------
+ |    1    |    2   |          |    3   |    4    |    5   |
++------+------+       +------+------+------+
 
-
-+-----+-----+       +-----+-----+-----+
- |   1    |   2   |         |   3   |   4   |   5   |
-+-----+-----+       +-----+-----+-----+
- |   6    |   7   |         |   8   |   9   |  10  |
-+-----+-----+       +-----+-----+-----+
-               +------------------------------
-                 |        corridor  """
++------+------+         +------+------+------+
+ |    6    |    7   |          |    8   |    9    |   10   |
++------+------+         +------+------+------+
+ |   11   |   12  |          |   13   |   14   |   15   |
++------+------+         +------+------+------+
+                                                                               +------------+
+                                                                                 |    door     |  """
 
 if __name__ == '__main__':
-    # TODO:
-    # 曜日ごとのロジックや実際の挙動を記載
+    ####################################
+    # 今日の日付を取得
+    ####################################
     time_now = get_today_datetime(9)
+
+    ####################################
+    # 休日リストの書き換え (年が変わった時に読み込み直す)
+    ####################################
+    if time_now.month == 1 and time_now.date == 1:
+        set_holiday_dict('holiday_lists.yaml', time_now.year)
+
+    ####################################
+    # テキスト生成部分
+    ####################################
+    str_time_now = datetime_to_str(datetime.date(time_now.year, time_now.month, time_now.day))
     weeknum = get_weekday_as_number(time_now)
 
+    # 今日が祝日かどうか判定(祝日なら以降の判定は全て飛ばす)
+    if str_time_now in load_holiday_dict('holiday_lists.yaml'):
+        todays_text = what_day_is_it_today(time_now, weeknum) + '({})'.format(load_holiday_dict('holiday_lists.yaml')[str_time_now]) + '\n\n' + HOLIDAY_COMMENT
+
     # 月曜日
-    if weeknum == 0:
-        # set_namelist(FILENAME)
+    elif weeknum == 0:
+        name_desk_list = combine_name_and_desk(set_namelist('name_list_1.yaml'), set_todays_desk_number(15))
+        todays_text = list_to_str(name_desk_list) + '\n' + what_day_is_it_today(time_now, weeknum) + '\n\n' + WEEKDAY_COMMENT + '\n\n' + OFFICE_MAP
 
-    # 火曜日
-    elif weeknum == 1:
-        #
-
-    # 水曜日
-    elif weeknum == 2:
-        #
+    # 火曜日、水曜日
+    elif weeknum == 1 or weeknum == 2:
+        name_desk_list = combine_name_and_desk(set_namelist('name_list_1.yaml'), set_todays_desk_number(15))
+        # is8r さんが自宅勤務
+        name_desk_list = replace_desk_number(name_desk_list, 'is8r', ':house_with_garden:')
+        todays_text = list_to_str(name_desk_list) + '\n' + what_day_is_it_today(time_now, weeknum) + '\n\n' + WEEKDAY_COMMENT + '\n\n' + OFFICE_MAP
 
     # 木曜日
     elif weeknum == 3:
-        #
+        name_desk_list = combine_name_and_desk(set_namelist('name_list_2.yaml'), set_todays_desk_number(15))
+        todays_text = list_to_str(name_desk_list) + '\n' + what_day_is_it_today(time_now, weeknum) + '\n\n' + WEEKDAY_COMMENT + '\n\n' + OFFICE_MAP
 
     # 金曜日
     elif weeknum == 4:
-        #
+        name_desk_list = combine_name_and_desk(set_namelist('name_list_2.yaml'), set_todays_desk_number(15))
+        # shinofara さん、 eruma さんが田町勤務
+        name_desk_list = replace_desk_number(name_desk_list, 'shinofara', ':tamachi:')
+        name_desk_list = replace_desk_number(name_desk_list, 'eruma', ':tamachi:')
+        todays_text = list_to_str(name_desk_list) + '\n' + what_day_is_it_today(time_now, weeknum) + '\n\n' + WEEKDAY_COMMENT + '\n\n' + OFFICE_MAP
 
     # 土曜日、日曜日
     elif weeknum == 5 or weeknum == 6:
-        #
+        todays_text = what_day_is_it_today(time_now, weeknum) + '\n\n' + HOLIDAY_COMMENT
+    
+    ####################################
+    # slack への送信部分
+    ####################################
+    # 環境変数のロード
+    SLACK_URL = os.getenv("SLACK_URL")
+
+    # 送信
+    send_bot_message(todays_text, SLACK_URL)
