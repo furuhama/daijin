@@ -1,3 +1,4 @@
 slackbot==0.4.1
 PyYAML==3.12
 requests==2.12.4
+python-dateutil==2.4.2
